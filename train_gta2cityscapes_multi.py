@@ -31,7 +31,7 @@ DATA_DIRECTORY = '/home/joonhkim/UDA/datasets/GTA5'
 DATA_LIST_PATH = './dataset/gta5_list/train.txt'
 IGNORE_LABEL = 255
 INPUT_SIZE = '1024,512'
-DATA_DIRECTORY_TARGET = '/home/joonhkim/UDA/datasets/Cityscapes'
+DATA_DIRECTORY_TARGET = '/home/joonhkim/UDA/datasets/CityScapes'
 DATA_LIST_PATH_TARGET = './dataset/cityscapes_list/train.txt'
 INPUT_SIZE_TARGET = '1024,512'
 LEARNING_RATE = 2.5e-4
@@ -188,7 +188,7 @@ def main():
             # Scale.layer5.conv2d_list.3.weight
             i_parts = i.split('.')
             # print i_parts
-            if not args.num_classes == 19 or not i_parts[1] == 'layer5':
+            if not args.num_classes == 18 or not i_parts[1] == 'layer5':
                 new_params['.'.join(i_parts[1:])] = saved_state_dict[i]
                 # print i_parts
         model.load_state_dict(new_params)
@@ -295,7 +295,7 @@ def main():
 
             _, batch = trainloader_iter.__next__()
 
-            images, labels, _, _ = batch
+            images, labels, _ = batch
             images = images.to(device)
             labels = labels.long().to(device)
 

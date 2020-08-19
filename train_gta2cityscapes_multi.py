@@ -16,22 +16,25 @@ import random
 from tensorboardX import SummaryWriter
 
 from model.deeplab_multi import DeeplabMulti
-from model.discriminator import FCDiscriminator
+from model.discriminator import FCDiscriminator, SpectralDiscriminator, Hinge
 from utils.loss import CrossEntropy2d
 from dataset.gta5_dataset import GTA5DataSet
 from dataset.cityscapes_dataset import cityscapesDataSet
+from dataset.idd_dataset import IDDDataSet
 
 DIR_NAME = 'AdaptSegNet_Vanilla(SpecX)_multi'
+GAN = 'Vanilla'
+SPEC = False
 
 MODEL = 'DeepLab'
 BATCH_SIZE = 1
 ITER_SIZE = 1
 NUM_WORKERS = 4
-DATA_DIRECTORY = '/home/joonhkim/UDA/datasets/GTA5'
+DATA_DIRECTORY = '/work/GTA5'
 DATA_LIST_PATH = './dataset/gta5_list/train.txt'
 IGNORE_LABEL = 255
 INPUT_SIZE = '1024,512'
-DATA_DIRECTORY_TARGET = '/home/joonhkim/UDA/datasets/CityScapes'
+DATA_DIRECTORY_TARGET = '/work/CityScapes'
 DATA_LIST_PATH_TARGET = './dataset/cityscapes_list/train.txt'
 INPUT_SIZE_TARGET = '1024,512'
 LEARNING_RATE = 2.5e-4
@@ -52,7 +55,6 @@ LEARNING_RATE_D = 1e-4
 LAMBDA_SEG = 0.1
 LAMBDA_ADV_TARGET1 = 0.0002
 LAMBDA_ADV_TARGET2 = 0.001
-GAN = 'Vanilla'
 
 TARGET = 'cityscapes'
 SET = 'train'
@@ -137,6 +139,8 @@ def get_arguments():
                         help="choose adaptation set.")
     parser.add_argument("--gan", type=str, default=GAN,
                         help="choose the GAN objective.")
+    parser.add_argument("--spec", action='store_true', default=SPEC,
+                        help="choose whether to use spectral norm.")
     parser.add_argument("--dir-name", type=str, default=DIR_NAME)
     return parser.parse_args()
 
@@ -199,8 +203,12 @@ def main():
     cudnn.benchmark = True
 
     # init D
-    model_D1 = FCDiscriminator(num_classes=args.num_classes).to(device)
-    model_D2 = FCDiscriminator(num_classes=args.num_classes).to(device)
+    if args.spec == False:
+        model_D1 = FCDiscriminator(num_classes=args.num_classes).to(device)
+        model_D2 = FCDiscriminator(num_classes=args.num_classes).to(device)
+    else:
+        model_D1 = SpectralDiscriminator(num_classes=args.num_classes).to(device)
+        model_D2 = SpectralDiscriminator(num_classes=args.num_classes).to(device)
 
     model_D1.train()
     model_D1.to(device)
@@ -230,6 +238,27 @@ def main():
 
     targetloader_iter = enumerate(targetloader)
 
+    # targetloader_1 = data.DataLoader(cityscapesDataSet('/work/CityScapes', './dataset/cityscapes_list/train.txt',
+    #                                                    max_iters=args.num_steps * args.iter_size * args.batch_size,
+    #                                                    crop_size=input_size_target,
+    #                                                    ignore_label=args.ignore_label,
+    #                                                    set=args.set,
+    #                                                    num_classes=args.num_classes),
+    #                                  batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
+    #                                  pin_memory=True)
+    #
+    # targetloader_iter_1 = enumerate(targetloader_1)
+    #
+    # targetloader_2 = data.DataLoader(IDDDataSet('/work/IDD_Segmentation', './dataset/idd_list/train.txt',
+    #                                             max_iters=args.num_steps * args.batch_size,
+    #                                             crop_size=input_size_target,
+    #                                             ignore_label=args.ignore_label,
+    #                                             set=args.set, num_classes=args.num_classes),
+    #                                  batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
+    #                                  pin_memory=True)
+    #
+    # targetloader_iter_2 = enumerate(targetloader_2)
+
     # implement model.optim_parameters(args) to handle different models' lr setting
 
     optimizer = optim.SGD(model.optim_parameters(args),
@@ -246,6 +275,10 @@ def main():
         bce_loss = torch.nn.BCEWithLogitsLoss()
     elif args.gan == 'LS':
         bce_loss = torch.nn.MSELoss()
+    elif args.gan == 'Hinge':
+        adversarial_loss_1 = Hinge(model_D1)
+        adversarial_loss_2 = Hinge(model_D2)
+
     seg_loss = torch.nn.CrossEntropyLoss(ignore_index=255)
 
     interp = nn.Upsample(size=(input_size[1], input_size[0]), mode='bilinear', align_corners=True)
@@ -316,6 +349,11 @@ def main():
             # train with target
 
             _, batch = targetloader_iter.__next__()
+            # if i_iter % 2 == 0:
+            #     _, batch = targetloader_iter_1.__next__()
+            # else:
+            #     _, batch = targetloader_iter_2.__next__()
+
             images, _, _ = batch
             images = images.to(device)
 
@@ -323,12 +361,16 @@ def main():
             pred_target1 = interp_target(pred_target1)
             pred_target2 = interp_target(pred_target2)
 
-            D_out1 = model_D1(F.softmax(pred_target1))
-            D_out2 = model_D2(F.softmax(pred_target2))
+            if args.gan == 'Hinge':
+                loss_adv_target1 = adversarial_loss_1(F.softmax(pred_target1), generator=True)
+                loss_adv_target2 = adversarial_loss_2(F.softmax(pred_target2), generator=True)
+            else:
+                D_out1 = model_D1(F.softmax(pred_target1))
+                D_out2 = model_D2(F.softmax(pred_target2))
 
-            loss_adv_target1 = bce_loss(D_out1, torch.FloatTensor(D_out1.data.size()).fill_(source_label).to(device))
+                loss_adv_target1 = bce_loss(D_out1, torch.FloatTensor(D_out1.data.size()).fill_(source_label).to(device))
 
-            loss_adv_target2 = bce_loss(D_out2, torch.FloatTensor(D_out2.data.size()).fill_(source_label).to(device))
+                loss_adv_target2 = bce_loss(D_out2, torch.FloatTensor(D_out2.data.size()).fill_(source_label).to(device))
 
             loss = args.lambda_adv_target1 * loss_adv_target1 + args.lambda_adv_target2 * loss_adv_target2
             loss = loss / args.iter_size
@@ -345,45 +387,55 @@ def main():
             for param in model_D2.parameters():
                 param.requires_grad = True
 
-            # train with source
             pred1 = pred1.detach()
             pred2 = pred2.detach()
-
-            D_out1 = model_D1(F.softmax(pred1))
-            D_out2 = model_D2(F.softmax(pred2))
-
-            loss_D1 = bce_loss(D_out1, torch.FloatTensor(D_out1.data.size()).fill_(source_label).to(device))
-
-            loss_D2 = bce_loss(D_out2, torch.FloatTensor(D_out2.data.size()).fill_(source_label).to(device))
-
-            loss_D1 = loss_D1 / args.iter_size / 2
-            loss_D2 = loss_D2 / args.iter_size / 2
-
-            loss_D1.backward()
-            loss_D2.backward()
-
-            loss_D_value1 += loss_D1.item()
-            loss_D_value2 += loss_D2.item()
-
-            # train with target
             pred_target1 = pred_target1.detach()
             pred_target2 = pred_target2.detach()
 
-            D_out1 = model_D1(F.softmax(pred_target1))
-            D_out2 = model_D2(F.softmax(pred_target2))
+            if args.gan == 'Hinge':
+                loss_D1 = adversarial_loss_1(F.softmax(pred_target1), F.softmax(pred1), generator=False)
+                loss_D2 = adversarial_loss_2(F.softmax(pred_target2), F.softmax(pred2), generator=False)
 
-            loss_D1 = bce_loss(D_out1, torch.FloatTensor(D_out1.data.size()).fill_(target_label).to(device))
+                loss_D1.backward()
+                loss_D2.backward()
 
-            loss_D2 = bce_loss(D_out2, torch.FloatTensor(D_out2.data.size()).fill_(target_label).to(device))
+                loss_D_value1 += loss_D1.item()
+                loss_D_value2 += loss_D2.item()
 
-            loss_D1 = loss_D1 / args.iter_size / 2
-            loss_D2 = loss_D2 / args.iter_size / 2
+            else:
+                # train with source
+                D_out1 = model_D1(F.softmax(pred1))
+                D_out2 = model_D2(F.softmax(pred2))
 
-            loss_D1.backward()
-            loss_D2.backward()
+                loss_D1 = bce_loss(D_out1, torch.FloatTensor(D_out1.data.size()).fill_(source_label).to(device))
 
-            loss_D_value1 += loss_D1.item()
-            loss_D_value2 += loss_D2.item()
+                loss_D2 = bce_loss(D_out2, torch.FloatTensor(D_out2.data.size()).fill_(source_label).to(device))
+
+                loss_D1 = loss_D1 / args.iter_size / 2
+                loss_D2 = loss_D2 / args.iter_size / 2
+
+                loss_D1.backward()
+                loss_D2.backward()
+
+                loss_D_value1 += loss_D1.item()
+                loss_D_value2 += loss_D2.item()
+
+                # train with target
+                D_out1 = model_D1(F.softmax(pred_target1))
+                D_out2 = model_D2(F.softmax(pred_target2))
+
+                loss_D1 = bce_loss(D_out1, torch.FloatTensor(D_out1.data.size()).fill_(target_label).to(device))
+
+                loss_D2 = bce_loss(D_out2, torch.FloatTensor(D_out2.data.size()).fill_(target_label).to(device))
+
+                loss_D1 = loss_D1 / args.iter_size / 2
+                loss_D2 = loss_D2 / args.iter_size / 2
+
+                loss_D1.backward()
+                loss_D2.backward()
+
+                loss_D_value1 += loss_D1.item()
+                loss_D_value2 += loss_D2.item()
 
         optimizer.step()
         optimizer_D1.step()

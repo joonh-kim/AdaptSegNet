@@ -12,12 +12,12 @@ from dataset.cityscapes_dataset import cityscapesDataSet
 from dataset.idd_dataset import IDDDataSet
 
 SOURCE = 'GTA5'  # 'GTA5' or 'SYNTHIA'
-DIR_NAME = 'AdaptSegNet_Vanilla(SpecX)_multi'
+DIR_NAME = 'AdaptSegNet_Vanilla(SpecX)_multi_union'
 
 GTA5 = True
 SYNTHIA = False
 CityScapes = True
-IDD = False
+IDD = True
 PER_CLASS = True
 
 SAVE_PRED_EVERY = 5000
@@ -25,16 +25,16 @@ NUM_STEPS_STOP = 150000
 
 BATCH_SIZE = 1
 
-DATA_DIRECTORY_GTA5 = '/home/joonhkim/UDA/datasets/GTA5'
+DATA_DIRECTORY_GTA5 = '/work/GTA5'
 DATA_LIST_PATH_GTA5 = './dataset/gta5_list/val.txt'
 
-DATA_DIRECTORY_SYNTHIA = '/home/joonhkim/UDA/datasets/SYNTHIA'
+DATA_DIRECTORY_SYNTHIA = '/work/SYNTHIA'
 DATA_LIST_PATH_SYNTHIA = './dataset/synthia_list/val.txt'
 
-DATA_DIRECTORY_CityScapes = '/home/joonhkim/UDA/datasets/CityScapes'
+DATA_DIRECTORY_CityScapes = '/work/CityScapes'
 DATA_LIST_PATH_CityScapes = './dataset/cityscapes_list/val.txt'
 
-DATA_DIRECTORY_IDD = '/home/joonhkim/UDA/datasets/IDD_Segmentation'
+DATA_DIRECTORY_IDD = '/work/IDD_Segmentation'
 DATA_LIST_PATH_IDD = './dataset/idd_list/val.txt'
 
 IGNORE_LABEL = 255
@@ -108,7 +108,7 @@ def main():
     random.seed(seed)
 
     input_size = (1024, 512)
-    interp = nn.Upsample(size=(input_size[0], input_size[1]), mode='bilinear', align_corners=True)
+    interp = nn.Upsample(size=(input_size[1], input_size[0]), mode='bilinear', align_corners=True)
 
     if args.num_classes == 13:
         name_classes = np.asarray(["road",
@@ -169,7 +169,7 @@ def main():
             for i, data in enumerate(gta5_loader):
                 images_val, labels, _ = data
                 images_val, labels = images_val.to(device), labels.to(device)
-                _, pred = model(images_val, input_size)
+                _, pred = model(images_val)
                 pred = interp(pred)
                 # pred, _ = model(images_val, input_size)
                 # pred = nn.Upsample(size=(1052, 1914), mode='bilinear', align_corners=True)(pred)
@@ -199,7 +199,7 @@ def main():
             for i, data in enumerate(synthia_loader):
                 images_val, labels, _ = data
                 images_val, labels = images_val.to(device), labels.to(device)
-                _, pred = model(images_val, input_size)
+                _, pred = model(images_val)
                 pred = interp(pred)
                 # pred, _ = model(images_val, input_size)
                 # pred = nn.Upsample(size=(760, 1280), mode='bilinear', align_corners=True)(pred)
@@ -229,7 +229,7 @@ def main():
             for i, data in enumerate(cityscapes_loader):
                 images_val, labels, _ = data
                 images_val, labels = images_val.to(device), labels.to(device)
-                _, pred = model(images_val, input_size)
+                _, pred = model(images_val)
                 pred = interp(pred)
                 # pred, _ = model(images_val, input_size)
                 # pred = nn.Upsample(size=(1024, 2048), mode='bilinear', align_corners=True)(pred)
@@ -259,7 +259,7 @@ def main():
             for i, data in enumerate(idd_loader):
                 images_val, labels, _ = data
                 images_val, labels = images_val.to(device), labels.to(device)
-                _, pred = model(images_val, input_size)
+                _, pred = model(images_val)
                 pred = interp(pred)
                 # pred, _ = model(images_val, input_size)
                 # pred = nn.Upsample(size=(1080, 1920), mode='bilinear', align_corners=True)(pred)

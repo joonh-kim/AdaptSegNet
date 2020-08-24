@@ -90,7 +90,11 @@ class Hinge(nn.Module):
 
 		if generator:
 			if new_Hinge:
-				loss = torch.nn.ReLU()(torch.mean(real_samples) - torch.mean(fake))
+				if label is None:
+					real = self.discriminator(real_samples)
+				else:
+					real = self.discriminator(real_samples, label)
+				loss = torch.nn.ReLU()(torch.mean(real) - torch.mean(fake))
 			else:
 				loss = -torch.mean(fake)
 		else:
@@ -99,6 +103,5 @@ class Hinge(nn.Module):
 			else:
 				real = self.discriminator(real_samples, label)
 
-			loss = (torch.mean(torch.nn.ReLU()(1 - real)) +
-					torch.mean(torch.nn.ReLU()(1 + fake)))
+			loss = (torch.mean(torch.nn.ReLU()(1 - real)) + torch.mean(torch.nn.ReLU()(1 + fake)))
 		return loss

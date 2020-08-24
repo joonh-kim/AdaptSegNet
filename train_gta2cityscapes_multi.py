@@ -17,12 +17,12 @@ from tensorboardX import SummaryWriter
 
 from model.deeplab_multi import DeeplabMulti
 from model.discriminator import FCDiscriminator, SpectralDiscriminator, Hinge
-from utils.loss import CrossEntropy2d
 from dataset.gta5_dataset import GTA5DataSet
+from dataset.synthia_dataset import SYNTHIADataSet
 from dataset.cityscapes_dataset import cityscapesDataSet
 from dataset.idd_dataset import IDDDataSet
 
-DIR_NAME = 'AdaptSegNet_Vanilla(SpecX)_multi'
+DIR_NAME = 'AdaptSegNet_Vanilla(SpecX)_multi_union_SCI'
 GAN = 'Vanilla'
 SPEC = False
 
@@ -30,8 +30,10 @@ MODEL = 'DeepLab'
 BATCH_SIZE = 1
 ITER_SIZE = 1
 NUM_WORKERS = 4
-DATA_DIRECTORY = '/work/GTA5'
-DATA_LIST_PATH = './dataset/gta5_list/train.txt'
+# DATA_DIRECTORY = '/work/GTA5'
+# DATA_LIST_PATH = './dataset/gta5_list/train.txt'
+DATA_DIRECTORY = '/root/AdaptSegNet/data/GTA5'
+DATA_LIST_PATH = './dataset/synthia_list/train.txt'
 IGNORE_LABEL = 255
 INPUT_SIZE = '1024,512'
 DATA_DIRECTORY_TARGET = '/work/CityScapes'
@@ -39,7 +41,7 @@ DATA_LIST_PATH_TARGET = './dataset/cityscapes_list/train.txt'
 INPUT_SIZE_TARGET = '1024,512'
 LEARNING_RATE = 2.5e-4
 MOMENTUM = 0.9
-NUM_CLASSES = 18
+NUM_CLASSES = 13
 NUM_STEPS = 200000
 NUM_STEPS_STOP = 150000  # early stopping
 POWER = 0.9
@@ -192,7 +194,7 @@ def main():
             # Scale.layer5.conv2d_list.3.weight
             i_parts = i.split('.')
             # print i_parts
-            if not args.num_classes == 18 or not i_parts[1] == 'layer5':
+            if not args.num_classes == 13 or not i_parts[1] == 'layer5':
                 new_params['.'.join(i_parts[1:])] = saved_state_dict[i]
                 # print i_parts
         model.load_state_dict(new_params)
@@ -219,45 +221,50 @@ def main():
     if not os.path.exists(os.path.join(args.snapshot_dir, args.dir_name)):
         os.makedirs(os.path.join(args.snapshot_dir, args.dir_name))
 
+    # trainloader = data.DataLoader(
+    #     GTA5DataSet(args.data_dir, args.data_list, max_iters=args.num_steps * args.iter_size * args.batch_size,
+    #                 crop_size=input_size, ignore_label=args.ignore_label, set=args.set, num_classes=args.num_classes),
+    #     batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
+
     trainloader = data.DataLoader(
-        GTA5DataSet(args.data_dir, args.data_list, max_iters=args.num_steps * args.iter_size * args.batch_size,
+        SYNTHIADataSet(args.data_dir, args.data_list, max_iters=args.num_steps * args.iter_size * args.batch_size,
                     crop_size=input_size, ignore_label=args.ignore_label, set=args.set, num_classes=args.num_classes),
         batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
 
     trainloader_iter = enumerate(trainloader)
 
-    targetloader = data.DataLoader(cityscapesDataSet(args.data_dir_target, args.data_list_target,
-                                                     max_iters=args.num_steps * args.iter_size * args.batch_size,
-                                                     crop_size=input_size_target,
-                                                     ignore_label=args.ignore_label,
-                                                     set=args.set,
-                                                     num_classes=args.num_classes),
-                                   batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
-                                   pin_memory=True)
-
-
-    targetloader_iter = enumerate(targetloader)
-
-    # targetloader_1 = data.DataLoader(cityscapesDataSet('/work/CityScapes', './dataset/cityscapes_list/train.txt',
-    #                                                    max_iters=args.num_steps * args.iter_size * args.batch_size,
-    #                                                    crop_size=input_size_target,
-    #                                                    ignore_label=args.ignore_label,
-    #                                                    set=args.set,
-    #                                                    num_classes=args.num_classes),
-    #                                  batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
-    #                                  pin_memory=True)
+    # targetloader = data.DataLoader(cityscapesDataSet(args.data_dir_target, args.data_list_target,
+    #                                                  max_iters=args.num_steps * args.iter_size * args.batch_size,
+    #                                                  crop_size=input_size_target,
+    #                                                  ignore_label=args.ignore_label,
+    #                                                  set=args.set,
+    #                                                  num_classes=args.num_classes),
+    #                                batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
+    #                                pin_memory=True)
     #
-    # targetloader_iter_1 = enumerate(targetloader_1)
     #
-    # targetloader_2 = data.DataLoader(IDDDataSet('/work/IDD_Segmentation', './dataset/idd_list/train.txt',
-    #                                             max_iters=args.num_steps * args.batch_size,
-    #                                             crop_size=input_size_target,
-    #                                             ignore_label=args.ignore_label,
-    #                                             set=args.set, num_classes=args.num_classes),
-    #                                  batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
-    #                                  pin_memory=True)
-    #
-    # targetloader_iter_2 = enumerate(targetloader_2)
+    # targetloader_iter = enumerate(targetloader)
+
+    targetloader_1 = data.DataLoader(cityscapesDataSet('/root/AdaptSegNet/data/CityScapes', './dataset/cityscapes_list/train.txt',
+                                                       max_iters=args.num_steps * args.iter_size * args.batch_size,
+                                                       crop_size=input_size_target,
+                                                       ignore_label=args.ignore_label,
+                                                       set=args.set,
+                                                       num_classes=args.num_classes),
+                                     batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
+                                     pin_memory=True)
+
+    targetloader_iter_1 = enumerate(targetloader_1)
+
+    targetloader_2 = data.DataLoader(IDDDataSet('/root/AdaptSegNet/data/IDD', './dataset/idd_list/train.txt',
+                                                max_iters=args.num_steps * args.batch_size,
+                                                crop_size=input_size_target,
+                                                ignore_label=args.ignore_label,
+                                                set=args.set, num_classes=args.num_classes),
+                                     batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
+                                     pin_memory=True)
+
+    targetloader_iter_2 = enumerate(targetloader_2)
 
     # implement model.optim_parameters(args) to handle different models' lr setting
 
@@ -275,7 +282,7 @@ def main():
         bce_loss = torch.nn.BCEWithLogitsLoss()
     elif args.gan == 'LS':
         bce_loss = torch.nn.MSELoss()
-    elif args.gan == 'Hinge':
+    elif args.gan == 'Hinge' or args.gan == 'new_Hinge':
         adversarial_loss_1 = Hinge(model_D1)
         adversarial_loss_2 = Hinge(model_D2)
 
@@ -342,17 +349,18 @@ def main():
 
             # proper normalization
             loss = loss / args.iter_size
-            loss.backward()
+            if not args.gan == 'new_Hinge':
+                loss.backward()
             loss_seg_value1 += loss_seg1.item() / args.iter_size
             loss_seg_value2 += loss_seg2.item() / args.iter_size
 
             # train with target
 
-            _, batch = targetloader_iter.__next__()
-            # if i_iter % 2 == 0:
-            #     _, batch = targetloader_iter_1.__next__()
-            # else:
-            #     _, batch = targetloader_iter_2.__next__()
+            # _, batch = targetloader_iter.__next__()
+            if i_iter % 2 == 0:
+                _, batch = targetloader_iter_1.__next__()
+            else:
+                _, batch = targetloader_iter_2.__next__()
 
             images, _, _ = batch
             images = images.to(device)
@@ -364,6 +372,11 @@ def main():
             if args.gan == 'Hinge':
                 loss_adv_target1 = adversarial_loss_1(F.softmax(pred_target1), generator=True)
                 loss_adv_target2 = adversarial_loss_2(F.softmax(pred_target2), generator=True)
+            elif args.gan == 'new_Hinge':
+                loss_adv_target1 = adversarial_loss_1(F.softmax(pred_target1), real_samples=F.softmax(pred1),
+                                                      generator=True, new_Hinge=True)
+                loss_adv_target2 = adversarial_loss_2(F.softmax(pred_target2), real_samples=F.softmax(pred2),
+                                                      generator=True, new_Hinge=True)
             else:
                 D_out1 = model_D1(F.softmax(pred_target1))
                 D_out2 = model_D2(F.softmax(pred_target2))
@@ -372,7 +385,10 @@ def main():
 
                 loss_adv_target2 = bce_loss(D_out2, torch.FloatTensor(D_out2.data.size()).fill_(source_label).to(device))
 
-            loss = args.lambda_adv_target1 * loss_adv_target1 + args.lambda_adv_target2 * loss_adv_target2
+            if args.gan == 'new_Hinge':
+                loss += args.lambda_adv_target1 * loss_adv_target1 + args.lambda_adv_target2 * loss_adv_target2
+            else:
+                loss = args.lambda_adv_target1 * loss_adv_target1 + args.lambda_adv_target2 * loss_adv_target2
             loss = loss / args.iter_size
             loss.backward()
             loss_adv_target_value1 += loss_adv_target1.item() / args.iter_size
@@ -392,9 +408,9 @@ def main():
             pred_target1 = pred_target1.detach()
             pred_target2 = pred_target2.detach()
 
-            if args.gan == 'Hinge':
-                loss_D1 = adversarial_loss_1(F.softmax(pred_target1), F.softmax(pred1), generator=False)
-                loss_D2 = adversarial_loss_2(F.softmax(pred_target2), F.softmax(pred2), generator=False)
+            if args.gan == 'Hinge' or args.gan == 'new_Hinge':
+                loss_D1 = adversarial_loss_1(F.softmax(pred_target1), real_samples=F.softmax(pred1), generator=False)
+                loss_D2 = adversarial_loss_2(F.softmax(pred_target2), real_samples=F.softmax(pred2), generator=False)
 
                 loss_D1.backward()
                 loss_D2.backward()
@@ -455,7 +471,7 @@ def main():
                 for key, val in scalar_info.items():
                     writer.add_scalar(key, val, i_iter)
 
-        print('exp = {}'.format(args.snapshot_dir))
+        print('exp = {}'.format(os.path.join(args.snapshot_dir, args.dir_name)))
         print(
         'iter = {0:8d}/{1:8d}, loss_seg1 = {2:.3f} loss_seg2 = {3:.3f} loss_adv1 = {4:.3f}, loss_adv2 = {5:.3f} loss_D1 = {6:.3f} loss_D2 = {7:.3f}'.format(
             i_iter, args.num_steps, loss_seg_value1, loss_seg_value2, loss_adv_target_value1, loss_adv_target_value2, loss_D_value1, loss_D_value2))

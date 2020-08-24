@@ -11,11 +11,11 @@ from dataset.synthia_dataset import SYNTHIADataSet
 from dataset.cityscapes_dataset import cityscapesDataSet
 from dataset.idd_dataset import IDDDataSet
 
-SOURCE = 'GTA5'  # 'GTA5' or 'SYNTHIA'
-DIR_NAME = 'AdaptSegNet_Vanilla(SpecX)_multi_union'
+SOURCE = 'SYNTHIA'  # 'GTA5' or 'SYNTHIA'
+DIR_NAME = 'AdaptSegNet_Vanilla(SpecX)_multi_union_SCI'
 
-GTA5 = True
-SYNTHIA = False
+GTA5 = False
+SYNTHIA = True
 CityScapes = True
 IDD = True
 PER_CLASS = True
@@ -25,16 +25,16 @@ NUM_STEPS_STOP = 150000
 
 BATCH_SIZE = 1
 
-DATA_DIRECTORY_GTA5 = '/work/GTA5'
+DATA_DIRECTORY_GTA5 = '/root/AdaptSegNet/data/GTA5'
 DATA_LIST_PATH_GTA5 = './dataset/gta5_list/val.txt'
 
-DATA_DIRECTORY_SYNTHIA = '/work/SYNTHIA'
+DATA_DIRECTORY_SYNTHIA = '/root/AdaptSegNet/data/SYNTHIA'
 DATA_LIST_PATH_SYNTHIA = './dataset/synthia_list/val.txt'
 
-DATA_DIRECTORY_CityScapes = '/work/CityScapes'
+DATA_DIRECTORY_CityScapes = '/root/AdaptSegNet/data/CityScapes'
 DATA_LIST_PATH_CityScapes = './dataset/cityscapes_list/val.txt'
 
-DATA_DIRECTORY_IDD = '/work/IDD_Segmentation'
+DATA_DIRECTORY_IDD = '/root/AdaptSegNet/data/IDD'
 DATA_LIST_PATH_IDD = './dataset/idd_list/val.txt'
 
 IGNORE_LABEL = 255

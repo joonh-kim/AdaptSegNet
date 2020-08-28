@@ -11,11 +11,11 @@ from dataset.synthia_dataset import SYNTHIADataSet
 from dataset.cityscapes_dataset import cityscapesDataSet
 from dataset.idd_dataset import IDDDataSet
 
-SOURCE = 'SYNTHIA'  # 'GTA5' or 'SYNTHIA'
-DIR_NAME = 'AdaptSegNet_Vanilla(SpecX)_multi_union_SCI'
+SOURCE = 'GTA5'  # 'GTA5' or 'SYNTHIA'
+DIR_NAME = 'AdaptSegNet_Vanilla(SpecX)_multi_GCI'
 
-GTA5 = False
-SYNTHIA = True
+GTA5 = True
+SYNTHIA = False
 CityScapes = True
 IDD = True
 PER_CLASS = True
@@ -25,16 +25,16 @@ NUM_STEPS_STOP = 150000
 
 BATCH_SIZE = 1
 
-DATA_DIRECTORY_GTA5 = '/root/AdaptSegNet/data/GTA5'
+DATA_DIRECTORY_GTA5 = '/work/GTA5'
 DATA_LIST_PATH_GTA5 = './dataset/gta5_list/val.txt'
 
-DATA_DIRECTORY_SYNTHIA = '/root/AdaptSegNet/data/SYNTHIA'
+DATA_DIRECTORY_SYNTHIA = '/work/SYNTHIA'
 DATA_LIST_PATH_SYNTHIA = './dataset/synthia_list/val.txt'
 
-DATA_DIRECTORY_CityScapes = '/root/AdaptSegNet/data/CityScapes'
+DATA_DIRECTORY_CityScapes = '/work/CityScapes'
 DATA_LIST_PATH_CityScapes = './dataset/cityscapes_list/val.txt'
 
-DATA_DIRECTORY_IDD = '/root/AdaptSegNet/data/IDD'
+DATA_DIRECTORY_IDD = '/work/IDD_Segmentation'
 DATA_LIST_PATH_IDD = './dataset/idd_list/val.txt'
 
 IGNORE_LABEL = 255
@@ -102,8 +102,7 @@ def main():
     seed = args.random_seed
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)  # 멀티 gpu 연산 무작위 고정
-    # torch.backends.cudnn.enabled = False  # cudnn library를 사용하지 않게 만듬
+    torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
     random.seed(seed)
 
@@ -171,10 +170,6 @@ def main():
                 images_val, labels = images_val.to(device), labels.to(device)
                 _, pred = model(images_val)
                 pred = interp(pred)
-                # pred, _ = model(images_val, input_size)
-                # pred = nn.Upsample(size=(1052, 1914), mode='bilinear', align_corners=True)(pred)
-                # labels = labels.unsqueeze(1)
-                # labels = nn.Upsample(size=(1052, 1914), mode='nearest')(labels)
                 _, pred = pred.max(dim=1)
 
                 labels = labels.cpu().numpy()
@@ -201,10 +196,6 @@ def main():
                 images_val, labels = images_val.to(device), labels.to(device)
                 _, pred = model(images_val)
                 pred = interp(pred)
-                # pred, _ = model(images_val, input_size)
-                # pred = nn.Upsample(size=(760, 1280), mode='bilinear', align_corners=True)(pred)
-                # labels = labels.unsqueeze(1)
-                # labels = nn.Upsample(size=(760, 1280), mode='nearest')(labels)
                 _, pred = pred.max(dim=1)
 
                 labels = labels.cpu().numpy()
@@ -231,10 +222,6 @@ def main():
                 images_val, labels = images_val.to(device), labels.to(device)
                 _, pred = model(images_val)
                 pred = interp(pred)
-                # pred, _ = model(images_val, input_size)
-                # pred = nn.Upsample(size=(1024, 2048), mode='bilinear', align_corners=True)(pred)
-                # labels = labels.unsqueeze(1)
-                # labels = nn.Upsample(size=(1024, 2048), mode='nearest')(labels)
                 _, pred = pred.max(dim=1)
 
                 labels = labels.cpu().numpy()
@@ -261,10 +248,6 @@ def main():
                 images_val, labels = images_val.to(device), labels.to(device)
                 _, pred = model(images_val)
                 pred = interp(pred)
-                # pred, _ = model(images_val, input_size)
-                # pred = nn.Upsample(size=(1080, 1920), mode='bilinear', align_corners=True)(pred)
-                # labels = labels.unsqueeze(1)
-                # labels = nn.Upsample(size=(1080, 1920), mode='nearest')(labels)
                 _, pred = pred.max(dim=1)
 
                 labels = labels.cpu().numpy()

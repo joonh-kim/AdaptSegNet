@@ -22,7 +22,7 @@ from dataset.synthia_dataset import SYNTHIADataSet
 from dataset.cityscapes_dataset import cityscapesDataSet
 from dataset.idd_dataset import IDDDataSet
 
-DIR_NAME = 'AdaptSegNet_Vanilla(SpecX)_multi_union_SCI'
+DIR_NAME = 'AdaptSegNet_Vanilla(SpecX)_multi_GCI'
 GAN = 'Vanilla'
 SPEC = False
 
@@ -30,23 +30,26 @@ MODEL = 'DeepLab'
 BATCH_SIZE = 1
 ITER_SIZE = 1
 NUM_WORKERS = 4
-# DATA_DIRECTORY = '/work/GTA5'
-# DATA_LIST_PATH = './dataset/gta5_list/train.txt'
-DATA_DIRECTORY = '/root/AdaptSegNet/data/GTA5'
-DATA_LIST_PATH = './dataset/synthia_list/train.txt'
+DATA_DIRECTORY = '/work/GTA5'
+DATA_LIST_PATH = './dataset/gta5_list/train.txt'
+# DATA_DIRECTORY = '/work/SYNTHIA'
+# DATA_LIST_PATH = './dataset/synthia_list/train.txt'
 IGNORE_LABEL = 255
 INPUT_SIZE = '1024,512'
-DATA_DIRECTORY_TARGET = '/work/CityScapes'
-DATA_LIST_PATH_TARGET = './dataset/cityscapes_list/train.txt'
+# DATA_DIRECTORY_TARGET = '/work/CityScapes'
+# DATA_LIST_PATH_TARGET = './dataset/cityscapes_list/train.txt'
+DATA_DIRECTORY_TARGET = '/work/IDD_Segmentation'
+DATA_LIST_PATH_TARGET = './dataset/idd_list/train.txt'
 INPUT_SIZE_TARGET = '1024,512'
 LEARNING_RATE = 2.5e-4
 MOMENTUM = 0.9
-NUM_CLASSES = 13
+NUM_CLASSES = 18
 NUM_STEPS = 200000
 NUM_STEPS_STOP = 150000  # early stopping
 POWER = 0.9
 RANDOM_SEED = 1338
-RESTORE_FROM = 'http://vllab.ucmerced.edu/ytsai/CVPR18/DeepLab_resnet_pretrained_init-f81d91e8.pth'
+# RESTORE_FROM = 'http://vllab.ucmerced.edu/ytsai/CVPR18/DeepLab_resnet_pretrained_init-f81d91e8.pth'
+RESTORE_FROM = './snapshots/AdaptSegNet_Vanilla(SpecX)_multi_GC/140000.pth'
 SAVE_NUM_IMAGES = 2
 SAVE_PRED_EVERY = 5000
 SNAPSHOT_DIR = './snapshots/'
@@ -184,19 +187,26 @@ def main():
     # Create network
     if args.model == 'DeepLab':
         model = DeeplabMulti(num_classes=args.num_classes)
-        if args.restore_from[:4] == 'http' :
-            saved_state_dict = model_zoo.load_url(args.restore_from)
-        else:
-            saved_state_dict = torch.load(args.restore_from)
+        # if args.restore_from[:4] == 'http' :
+        #     saved_state_dict = model_zoo.load_url(args.restore_from)
+        # else:
+        #     saved_state_dict = torch.load(args.restore_from)
+        #
+        # new_params = model.state_dict().copy()
+        # for i in saved_state_dict:
+        #     # Scale.layer5.conv2d_list.3.weight
+        #     i_parts = i.split('.')
+        #     # print i_parts
+        #     if not args.num_classes == 18 or not i_parts[1] == 'layer5':
+        #         new_params['.'.join(i_parts[1:])] = saved_state_dict[i]
+        #         # print i_parts
+        # model.load_state_dict(new_params)
 
+        saved_state_dict = torch.load(args.restore_from, map_location=device)
         new_params = model.state_dict().copy()
         for i in saved_state_dict:
-            # Scale.layer5.conv2d_list.3.weight
-            i_parts = i.split('.')
-            # print i_parts
-            if not args.num_classes == 13 or not i_parts[1] == 'layer5':
-                new_params['.'.join(i_parts[1:])] = saved_state_dict[i]
-                # print i_parts
+            if i in new_params.keys():
+                new_params[i] = saved_state_dict[i]
         model.load_state_dict(new_params)
 
     model.train()
@@ -221,15 +231,15 @@ def main():
     if not os.path.exists(os.path.join(args.snapshot_dir, args.dir_name)):
         os.makedirs(os.path.join(args.snapshot_dir, args.dir_name))
 
-    # trainloader = data.DataLoader(
-    #     GTA5DataSet(args.data_dir, args.data_list, max_iters=args.num_steps * args.iter_size * args.batch_size,
-    #                 crop_size=input_size, ignore_label=args.ignore_label, set=args.set, num_classes=args.num_classes),
-    #     batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
-
     trainloader = data.DataLoader(
-        SYNTHIADataSet(args.data_dir, args.data_list, max_iters=args.num_steps * args.iter_size * args.batch_size,
+        GTA5DataSet(args.data_dir, args.data_list, max_iters=args.num_steps * args.iter_size * args.batch_size,
                     crop_size=input_size, ignore_label=args.ignore_label, set=args.set, num_classes=args.num_classes),
         batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
+
+    # trainloader = data.DataLoader(
+    #     SYNTHIADataSet(args.data_dir, args.data_list, max_iters=args.num_steps * args.iter_size * args.batch_size,
+    #                 crop_size=input_size, ignore_label=args.ignore_label, set=args.set, num_classes=args.num_classes),
+    #     batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
 
     trainloader_iter = enumerate(trainloader)
 
@@ -242,21 +252,9 @@ def main():
     #                                batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
     #                                pin_memory=True)
     #
-    #
     # targetloader_iter = enumerate(targetloader)
 
-    targetloader_1 = data.DataLoader(cityscapesDataSet('/root/AdaptSegNet/data/CityScapes', './dataset/cityscapes_list/train.txt',
-                                                       max_iters=args.num_steps * args.iter_size * args.batch_size,
-                                                       crop_size=input_size_target,
-                                                       ignore_label=args.ignore_label,
-                                                       set=args.set,
-                                                       num_classes=args.num_classes),
-                                     batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
-                                     pin_memory=True)
-
-    targetloader_iter_1 = enumerate(targetloader_1)
-
-    targetloader_2 = data.DataLoader(IDDDataSet('/root/AdaptSegNet/data/IDD', './dataset/idd_list/train.txt',
+    targetloader = data.DataLoader(IDDDataSet(args.data_dir_target, args.data_list_target,
                                                 max_iters=args.num_steps * args.batch_size,
                                                 crop_size=input_size_target,
                                                 ignore_label=args.ignore_label,
@@ -264,7 +262,7 @@ def main():
                                      batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
                                      pin_memory=True)
 
-    targetloader_iter_2 = enumerate(targetloader_2)
+    targetloader_iter = enumerate(targetloader)
 
     # implement model.optim_parameters(args) to handle different models' lr setting
 
@@ -356,11 +354,7 @@ def main():
 
             # train with target
 
-            # _, batch = targetloader_iter.__next__()
-            if i_iter % 2 == 0:
-                _, batch = targetloader_iter_1.__next__()
-            else:
-                _, batch = targetloader_iter_2.__next__()
+            _, batch = targetloader_iter.__next__()
 
             images, _, _ = batch
             images = images.to(device)
